@@ -1,0 +1,194 @@
+# ==============================
+# ITA105 - LAB 1
+# Data Preprocessing - Full code
+# Chạy trên Google Colab
+# ==============================
+
+# ===== BƯỚC 0: UPLOAD FILE =====
+from google.colab import files
+uploaded = files.upload()
+
+# ===== BƯỚC 1: IMPORT THƯ VIỆN =====
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import re
+
+# ===== BƯỚC 2: ĐỌC DỮ LIỆU =====
+df = pd.read_csv("ITA105_Lab_1.csv")
+
+print("="*60)
+print("DU LIEU GOC")
+print("="*60)
+print(df.head())
+
+# =========================================================
+# BÀI 1: KHÁM PHÁ DỮ LIỆU
+# =========================================================
+print("\n" + "="*60)
+print("BÀI 1: KHÁM PHÁ DỮ LIỆU")
+print("="*60)
+
+# 1. Kích thước dữ liệu
+print("\n1. Kích thước dữ liệu (số dòng, số cột):")
+print(df.shape)
+
+# 2. Thống kê mô tả các cột số
+print("\n2. Thống kê mô tả các cột số:")
+print(df.describe())
+
+# 3. Kiểm tra giá trị thiếu
+print("\n3. Số lượng giá trị thiếu trong từng cột:")
+print(df.isnull().sum())
+
+# =========================================================
+# BÀI 2: XỬ LÝ DỮ LIỆU THIẾU
+# =========================================================
+print("\n" + "="*60)
+print("BÀI 2: XỬ LÝ DỮ LIỆU THIẾU")
+print("="*60)
+
+df_fill = df.copy()
+
+print("\n1. Giá trị thiếu trước khi xử lý:")
+print(df_fill.isnull().sum())
+
+# Điền giá trị thiếu bằng mean / median / mode
+if "Category" in df_fill.columns and df_fill["Category"].isnull().sum() > 0:
+    df_fill["Category"] = df_fill["Category"].fillna(df_fill["Category"].mode()[0])
+
+if "Price" in df_fill.columns and df_fill["Price"].isnull().sum() > 0:
+    df_fill["Price"] = df_fill["Price"].fillna(df_fill["Price"].mean())
+
+if "StockQuantity" in df_fill.columns and df_fill["StockQuantity"].isnull().sum() > 0:
+    df_fill["StockQuantity"] = df_fill["StockQuantity"].fillna(df_fill["StockQuantity"].median())
+
+if "Rating" in df_fill.columns and df_fill["Rating"].isnull().sum() > 0:
+    df_fill["Rating"] = df_fill["Rating"].fillna(df_fill["Rating"].mode()[0])
+
+if "Description" in df_fill.columns and df_fill["Description"].isnull().sum() > 0:
+    df_fill["Description"] = df_fill["Description"].fillna(df_fill["Description"].mode()[0])
+
+print("\n2. Giá trị thiếu sau khi fillna:")
+print(df_fill.isnull().sum())
+
+# So sánh với dropna()
+df_drop = df.dropna()
+
+print("\n3. So sánh với dropna():")
+print("Kích thước dữ liệu gốc      :", df.shape)
+print("Kích thước sau fillna()     :", df_fill.shape)
+print("Kích thước sau dropna()     :", df_drop.shape)
+
+# =========================================================
+# BÀI 3: XỬ LÝ DỮ LIỆU LỖI
+# =========================================================
+print("\n" + "="*60)
+print("BÀI 3: XỬ LÝ DỮ LIỆU LỖI")
+print("="*60)
+
+df_clean = df_fill.copy()
+
+# Kiểm tra giá trị bất hợp lý
+invalid_price = df_clean[df_clean["Price"] <= 0]
+invalid_stock = df_clean[df_clean["StockQuantity"] < 0]
+invalid_rating = df_clean[(df_clean["Rating"] < 1) | (df_clean["Rating"] > 5)]
+
+print("\n1. Số dòng có Price không hợp lệ (<= 0):", len(invalid_price))
+print("2. Số dòng có StockQuantity không hợp lệ (< 0):", len(invalid_stock))
+print("3. Số dòng có Rating không hợp lệ (<1 hoặc >5):", len(invalid_rating))
+
+# Xử lý dữ liệu lỗi
+# Price <= 0: thay bằng median của các giá trị hợp lệ
+valid_price_median = df_clean[df_clean["Price"] > 0]["Price"].median()
+df_clean.loc[df_clean["Price"] <= 0, "Price"] = valid_price_median
+
+# StockQuantity < 0: thay bằng median của các giá trị hợp lệ
+valid_stock_median = df_clean[df_clean["StockQuantity"] >= 0]["StockQuantity"].median()
+df_clean.loc[df_clean["StockQuantity"] < 0, "StockQuantity"] = valid_stock_median
+
+# Rating ngoài [1,5]: loại bỏ
+df_clean = df_clean[(df_clean["Rating"] >= 1) & (df_clean["Rating"] <= 5)]
+
+print("\nSau khi xử lý:")
+print("Price <= 0 còn lại        :", (df_clean["Price"] <= 0).sum())
+print("StockQuantity < 0 còn lại :", (df_clean["StockQuantity"] < 0).sum())
+print("Rating không hợp lệ còn lại:",
+      ((df_clean["Rating"] < 1) | (df_clean["Rating"] > 5)).sum())
+print("Kích thước dữ liệu sau làm sạch:", df_clean.shape)
+
+# =========================================================
+# BÀI 4: LÀM MƯỢT DỮ LIỆU NHIỄU
+# =========================================================
+print("\n" + "="*60)
+print("BÀI 4: LÀM MƯỢT DỮ LIỆU NHIỄU")
+print("="*60)
+
+df_smooth = df_clean.copy()
+
+# Moving Average cho cột Price
+df_smooth["Price_Smoothed"] = df_smooth["Price"].rolling(window=5, min_periods=1).mean()
+
+print("\n5 dòng đầu của Price và Price_Smoothed:")
+print(df_smooth[["Price", "Price_Smoothed"]].head())
+
+# Vẽ biểu đồ line trước và sau khi làm mượt
+plt.figure(figsize=(12, 6))
+plt.plot(df_smooth.index, df_smooth["Price"], label="Price gốc")
+plt.plot(df_smooth.index, df_smooth["Price_Smoothed"], label="Price sau làm mượt")
+plt.title("Biểu đồ Price trước và sau khi làm mượt")
+plt.xlabel("Index")
+plt.ylabel("Price")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# =========================================================
+# BÀI 5: CHUẨN HÓA DỮ LIỆU
+# TẠO BẢNG MỚI SAU KHI CHUẨN HÓA
+# =========================================================
+print("\n" + "="*60)
+print("BÀI 5: CHUẨN HÓA DỮ LIỆU")
+print("="*60)
+
+# Tạo bảng mới sau khi chuẩn hóa
+df_new = df_smooth.copy()
+
+# 1. Chuyển Category thành chữ thường
+df_new["Category"] = df_new["Category"].astype(str).str.lower().str.strip()
+
+# 2. Loại bỏ ký tự thừa trong Description
+df_new["Description"] = (
+    df_new["Description"]
+    .astype(str)
+    .str.strip()
+    .str.replace(r"\s+", " ", regex=True)
+    .str.replace(r"[^\w\s]", "", regex=True)
+)
+
+# 3. Chuyển Price từ USD sang VND (sửa trực tiếp cột Price)
+USD_TO_VND = 24000
+df_new["Price"] = df_new["Price"] * USD_TO_VND
+
+# Nếu muốn cột làm mượt cũng cùng đơn vị VNĐ thì đổi luôn
+df_new["Price_Smoothed"] = df_new["Price_Smoothed"] * USD_TO_VND
+
+print("\nDữ liệu sau khi chuẩn hóa (bảng mới df_new):")
+print(df_new.head())
+
+# =========================================================
+# LƯU FILE KẾT QUẢ
+# =========================================================
+output_file = "normalized_data.csv"
+df_new.to_csv(output_file, index=False)
+
+print("\n" + "="*60)
+print("KẾT QUẢ CUỐI")
+print("="*60)
+print("Đã tạo bảng mới sau chuẩn hóa: df_new")
+print("Đã lưu file:", output_file)
+print("\n5 dòng cuối của bảng mới:")
+print(df_new.tail())
+
+# Tải file kết quả về máy
+files.download(output_file)
