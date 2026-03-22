@@ -1,0 +1,353 @@
+# ==========================================
+# BÀI 1: KHÁM PHÁ DỮ LIỆU HOUSING
+# ==========================================
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy import stats
+from google.colab import files
+
+# --- 1. Nạp dữ liệu ---
+print("--- Bước 1: Nạp dữ liệu ---")
+# Nếu bạn chưa tải file lên, dùng lệnh này:
+uploaded = files.upload()
+df = pd.read_csv('ITA105_Lab_2_Housing.csv')
+
+print(f"Kích thước (shape): {df.shape}")
+print("\nKiểm tra giá trị thiếu (Missing values):")
+print(df.isnull().sum())
+
+# --- 2. Thống kê mô tả ---
+print("\n--- Bước 2: Thống kê mô tả ---")
+desc = df.describe().T
+desc['median'] = df.median()
+print(desc[['mean', 'median', 'std', 'min', 'max']])
+
+print("\nNHẬN XÉT: Nhìn vào dòng 'max' của dien_tich và gia, ta thấy giá trị cực đại lớn hơn rất nhiều")
+print("so với trung bình (mean), dấu hiệu của các điểm ngoại lệ (Outliers).")
+
+# --- 3. Vẽ Boxplot ---
+print("\n--- Bước 3: Vẽ Boxplot ---")
+plt.figure(figsize=(15, 5))
+for i, col in enumerate(df.columns):
+    plt.subplot(1, 3, i+1)
+    sns.boxplot(y=df[col], color='skyblue')
+    plt.title(f'Boxplot of {col}')
+plt.tight_layout()
+plt.show()
+
+# --- 4. Vẽ Scatterplot ---
+print("\n--- Bước 4: Vẽ Scatterplot ---")
+plt.figure(figsize=(8, 6))
+sns.scatterplot(data=df, x='dien_tich', y='gia', hue='so_phong', palette='viridis')
+plt.title('Mối quan hệ Diện tích và Giá (Phát hiện điểm lạc lõng)')
+plt.show()
+
+# --- 5. Tính IQR ---
+print("\n--- Bước 5 & 7: Xác định ngoại lệ theo IQR ---")
+Q1 = df.quantile(0.25)
+Q3 = df.quantile(0.75)
+IQR = Q3 - Q1
+outliers_iqr = ((df < (Q1 - 1.5 * IQR)) | (df > (Q3 + 1.5 * IQR))).any(axis=1)
+print(f"Số lượng ngoại lệ phát hiện bằng IQR: {outliers_iqr.sum()}")
+
+# --- 6. Tính Z-score ---
+print("\n--- Bước 6 & 7: Xác định ngoại lệ theo Z-score ---")
+z_scores = np.abs(stats.zscore(df.select_dtypes(include=[np.number])))
+outliers_z = (z_scores > 3).any(axis=1)
+print(f"Số lượng ngoại lệ phát hiện bằng Z-score (|Z| > 3): {outliers_z.sum()}")
+
+# --- 8. Phân tích nguyên nhân ---
+print("\n--- Bước 8: Phân tích nguyên nhân ---")
+print("Dựa trên dữ liệu, điểm ngoại lệ (ví dụ: dien_tich=1000, gia=50000, so_phong=20)")
+print("có thể là lỗi nhập liệu (thừa số 0) hoặc là biệt thự siêu lớn (đặc thù thực tế).")
+
+# --- 9. Xử lý ngoại lệ (Sử dụng phương pháp loại bỏ) ---
+print("\n--- Bước 9: Áp dụng xử lý (Loại bỏ các điểm Z-score > 3) ---")
+df_cleaned = df[~outliers_z]
+print(f"Số lượng dòng dữ liệu sau khi làm sạch: {df_cleaned.shape[0]}")
+
+# --- 10. Vẽ lại Boxplot sau xử lý ---
+print("\n--- Bước 10: Vẽ lại Boxplot sau xử lý ---")
+plt.figure(figsize=(15, 5))
+for i, col in enumerate(df_cleaned.columns):
+    plt.subplot(1, 3, i+1)
+    sns.boxplot(y=df_cleaned[col], color='lightgreen')
+    plt.title(f'Cleaned {col}')
+plt.tight_layout()
+plt.show()
+
+print("\nNHẬN XÉT: Sau khi xử lý, phạm vi biến thiên của dữ liệu đã thu hẹp lại,")
+print("giúp biểu đồ không bị nén và các mô hình dự báo sau này sẽ ổn định hơn.")
+
+
+# ==========================================
+# BÀI 2: PHÁT HIỆN NGOẠI LỆ TRONG DỮ LIỆU IOT
+# ==========================================
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy import stats
+from google.colab import files
+
+# --- 1. Load dữ liệu và Tiền xử lý ---
+print("--- Bước 1: Load dữ liệu ---")
+uploaded = files.upload() # Bỏ comment nếu chạy lần đầu chưa có file
+df_iot = pd.read_csv('ITA105_Lab_2_Iot.csv')
+
+# Chuyển timestamp sang kiểu datetime và set làm index
+df_iot['timestamp'] = pd.to_datetime(df_iot['timestamp'])
+df_iot.set_index('timestamp', inplace=True)
+
+print(f"Kích thước dữ liệu: {df_iot.shape}")
+print("Giá trị thiếu:\n", df_iot.isnull().sum())
+
+# --- 2. Vẽ Line plot temperature theo từng Sensor ---
+print("\n--- Bước 2: Line plot Temperature theo Sensor ---")
+plt.figure(figsize=(15, 6))
+for sensor in df_iot['sensor_id'].unique():
+    sensor_data = df_iot[df_iot['sensor_id'] == sensor]
+    plt.plot(sensor_data.index, sensor_data['temperature'], label=f'Sensor {sensor}', alpha=0.7)
+
+plt.title('Biến thiên nhiệt độ theo thời gian')
+plt.xlabel('Thời gian')
+plt.ylabel('Temperature')
+plt.legend()
+plt.show()
+
+# --- 3. Phát hiện ngoại lệ bằng Rolling Mean (Cửa sổ trượt) ---
+print("\n--- Bước 3: Rolling Mean ± 3*std (Window=10) ---")
+df_iot['rolling_mean'] = df_iot.groupby('sensor_id')['temperature'].transform(lambda x: x.rolling(window=10, center=True).mean())
+df_iot['rolling_std'] = df_iot.groupby('sensor_id')['temperature'].transform(lambda x: x.rolling(window=10, center=True).std())
+
+upper_bond = df_iot['rolling_mean'] + 3 * df_iot['rolling_std']
+lower_bond = df_iot['rolling_mean'] - 3 * df_iot['rolling_std']
+outliers_rolling = (df_iot['temperature'] > upper_bond) | (df_iot['temperature'] < lower_bond)
+
+print(f"Số ngoại lệ phát hiện bằng Rolling Mean: {outliers_rolling.sum()}")
+
+# --- 4. Tính Z-score cho từng Sensor ---
+print("\n--- Bước 4: Z-score theo từng Sensor ---")
+df_iot['z_score'] = df_iot.groupby('sensor_id')['temperature'].transform(lambda x: np.abs(stats.zscore(x)))
+outliers_z = df_iot['z_score'] > 3
+print(f"Số ngoại lệ phát hiện bằng Z-score (>3): {outliers_z.sum()}")
+
+# --- 5. Vẽ Boxplot và Scatter Plot highlight điểm bất thường ---
+print("\n--- Bước 5: Trực quan hóa điểm bất thường ---")
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+# Boxplot
+sns.boxplot(ax=axes[0], x='sensor_id', y='temperature', data=df_iot)
+axes[0].set_title('Boxplot Temperature theo Sensor')
+
+# Scatter plot Temperature vs Pressure
+sns.scatterplot(ax=axes[1], x='temperature', y='pressure', data=df_iot, hue=outliers_z, palette={True:'red', False:'blue'})
+axes[1].set_title('Temperature vs Pressure (Đỏ là ngoại lệ Z-score)')
+plt.show()
+
+# --- 6. So sánh số lượng ngoại lệ ---
+print("\n--- Bước 6: So sánh số lượng ngoại lệ ---")
+# Tính toán nhanh ngoại lệ theo Boxplot (IQR)
+Q1 = df_iot['temperature'].quantile(0.25)
+Q3 = df_iot['temperature'].quantile(0.75)
+IQR = Q3 - Q1
+outliers_iqr = (df_iot['temperature'] < (Q1 - 1.5 * IQR)) | (df_iot['temperature'] > (Q3 + 1.5 * IQR))
+
+comparison = pd.DataFrame({
+    'Phương pháp': ['Rolling Mean', 'Z-score', 'Boxplot (IQR)'],
+    'Số lượng ngoại lệ': [outliers_rolling.sum(), outliers_z.sum(), outliers_iqr.sum()]
+})
+print(comparison)
+
+# --- 7. Xử lý ngoại lệ bằng Interpolation (Nội suy) ---
+print("\n--- Bước 7: Xử lý ngoại lệ và vẽ lại dữ liệu ---")
+# Thay thế ngoại lệ bằng NaN sau đó nội suy
+df_iot_cleaned = df_iot.copy()
+df_iot_cleaned.loc[outliers_z, 'temperature'] = np.nan
+df_iot_cleaned['temperature'] = df_iot_cleaned['temperature'].interpolate(method='time')
+
+# Vẽ lại để kiểm tra
+plt.figure(figsize=(15, 5))
+plt.plot(df_iot_cleaned.index, df_iot_cleaned['temperature'], color='green', label='Cleaned Temperature')
+plt.title('Dữ liệu Nhiệt độ sau khi nội suy (Interpolation)')
+plt.legend()
+plt.show()
+
+print("\nHOÀN THÀNH BÀI 2!")
+
+
+# ==========================================
+# BÀI 3: NGOẠI LỆ TRONG GIAO DỊCH E-COMMERCE
+# ==========================================
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy import stats
+from google.colab import files
+import io
+
+# --- 1. Load dữ liệu và Thống kê ---
+print("--- Bước 1: Load dữ liệu ---")
+uploaded = files.upload()
+file_name = list(uploaded.keys())[0]
+df_eco = pd.read_csv(io.BytesIO(uploaded[file_name]))
+
+print(f"Kích thước dữ liệu: {df_eco.shape}")
+print("\nGiá trị thiếu:\n", df_eco.isnull().sum())
+print("\nThống kê mô tả:\n", df_eco.describe())
+
+# --- 2. Vẽ Boxplot cho Price, Quantity, Rating ---
+print("\n--- Bước 2: Vẽ Boxplot ban đầu ---")
+cols = ['price', 'quantity', 'rating']
+plt.figure(figsize=(15, 5))
+for i, col in enumerate(cols):
+    plt.subplot(1, 3, i+1)
+    sns.boxplot(y=df_eco[col], color='salmon')
+    plt.title(f'Boxplot of {col}')
+plt.tight_layout()
+plt.show()
+
+# --- 3. Tính IQR và Z-score ---
+print("\n--- Bước 3: Xác định ngoại lệ ---")
+# Tính IQR cho Price
+Q1 = df_eco['price'].quantile(0.25)
+Q3 = df_eco['price'].quantile(0.75)
+IQR = Q3 - Q1
+outliers_price_iqr = (df_eco['price'] < (Q1 - 1.5 * IQR)) | (df_eco['price'] > (Q3 + 1.5 * IQR))
+
+# Tính Z-score cho Price
+z_price = np.abs(stats.zscore(df_eco['price']))
+outliers_price_z = z_price > 3
+
+print(f"Số ngoại lệ Price (IQR): {outliers_price_iqr.sum()}")
+print(f"Số ngoại lệ Price (Z-score): {outliers_price_z.sum()}")
+
+# --- 4. Scatter plot Price vs Quantity ---
+print("\n--- Bước 4: Scatter Plot Price vs Quantity ---")
+plt.figure(figsize=(8, 6))
+sns.scatterplot(data=df_eco, x='quantity', y='price', hue=outliers_price_z, palette={True:'red', False:'blue'})
+plt.title('Price vs Quantity (Đỏ là ngoại lệ Z-score)')
+plt.show()
+
+# --- 5. Phân tích nguyên nhân ---
+print("\n--- Bước 5: Phân tích lỗi logic ---")
+error_zero = df_eco[df_eco['price'] <= 0]
+error_rating = df_eco[(df_eco['rating'] < 1) | (df_eco['rating'] > 5)]
+print(f"- Số đơn hàng giá <= 0 (Lỗi nhập liệu): {len(error_zero)}")
+print(f"- Số đơn hàng rating ngoài khoảng 1-5: {len(error_rating)}")
+
+# --- 6. Thực hiện xử lý ngoại lệ ---
+print("\n--- Bước 6: Xử lý ngoại lệ ---")
+# Tạo bản sao để xử lý
+df_clean = df_eco.copy()
+
+# A. Loại bỏ lỗi nhập liệu (giá 0 hoặc rating sai)
+df_clean = df_clean[(df_clean['price'] > 0) & (df_clean['rating'] >= 1) & (df_clean['rating'] <= 5)]
+
+# B. Điều chỉnh giá trị lệch bằng Log-transform cho Price (giúp giảm độ lệch của hàng Premium)
+# (Chúng ta dùng log1p để tránh lỗi nếu có giá trị nhỏ)
+df_clean['price_log'] = np.log1p(df_clean['price'])
+
+# C. Clip (giới hạn) Quantity tại phân vị 99% để tránh các số lượng quá bất thường
+upper_limit = df_clean['quantity'].quantile(0.99)
+df_clean['quantity'] = df_clean['quantity'].clip(upper=upper_limit)
+
+# --- 7. Vẽ lại và Nhận xét ---
+print("\n--- Bước 7: Vẽ lại biểu đồ sau xử lý ---")
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+# Boxplot Price sau khi Log-transform
+sns.boxplot(ax=axes[0], y=df_clean['price_log'], color='lightblue')
+axes[0].set_title('Boxplot Price (Sau Log-transform)')
+
+# Scatter plot Price vs Quantity sau làm sạch
+sns.scatterplot(ax=axes[1], x='quantity', y='price', data=df_clean, color='green')
+axes[1].set_title('Price vs Quantity (Sau khi xử lý lỗi)')
+
+plt.show()
+print("\nNHẬN XÉT: Sau khi loại bỏ giá 0 và áp dụng Log-transform cho Price,")
+print("dữ liệu đã trở nên cân đối hơn, không còn bị kéo lệch bởi các giá trị quá lớn.")
+
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy import stats
+
+# ========================================================
+# KHỞI TẠO DỮ LIỆU (Giả lập để chạy ngay)
+# ========================================================
+def create_multivariate_data():
+    # Housing: Tạo điểm diện tích lớn nhưng giá rất rẻ (ngược đời)
+    df_h = pd.DataFrame({
+        'dien_tich': np.random.normal(100, 20, 100).tolist() + [200, 210],
+        'gia': np.random.normal(1000, 200, 100).tolist() + [200, 250] # Giá cực thấp cho diện tích lớn
+    })
+
+    # IoT: Temperature bình thường nhưng Pressure đột ngột thấp
+    df_i = pd.DataFrame({
+        'temperature': np.random.normal(25, 2, 100).tolist() + [26, 24],
+        'pressure': np.random.normal(1013, 5, 100).tolist() + [900, 890]
+    })
+
+    # Ecommerce: Price trung bình, Rating cao nhưng Quantity khổng lồ
+    df_e = pd.DataFrame({
+        'price': np.random.normal(50, 10, 100).tolist() + [55, 60],
+        'quantity': np.random.normal(5, 2, 100).tolist() + [500, 600],
+        'rating': np.random.normal(4, 0.5, 100).tolist() + [5, 5]
+    })
+    return df_h, df_i, df_e
+
+df_h, df_i, df_e = create_multivariate_data()
+
+# ========================================================
+# BÀI 4: MULTIVARIATE OUTLIER ANALYSIS
+# ========================================================
+print("--- BẮT ĐẦU PHÂN TÍCH NGOẠI LỆ ĐA BIẾN ---")
+
+# --- 1. HOUSING: Diện tích + Giá ---
+# Dùng Z-score cho từng biến
+z_h = np.abs(stats.zscore(df_h))
+# Multivariate Outlier: Là những điểm có Z-score > 2 ở ít nhất một trong các biến kết hợp
+is_outlier_h = (z_h > 2).any(axis=1)
+
+plt.figure(figsize=(8, 5))
+sns.scatterplot(data=df_h, x='dien_tich', y='gia', hue=is_outlier_h, palette={True:'red', False:'blue'})
+plt.title("Housing: Multivariate Outliers (Diện tích & Giá)")
+plt.show()
+
+# --- 2. IOT: Temperature + Pressure ---
+z_i = np.abs(stats.zscore(df_i))
+is_outlier_i = (z_i > 2.5).any(axis=1)
+
+plt.figure(figsize=(8, 5))
+sns.scatterplot(data=df_i, x='temperature', y='pressure', hue=is_outlier_i, palette={True:'red', False:'blue'})
+plt.title("IoT: Multivariate Outliers (Temp & Pressure)")
+plt.show()
+
+# --- 3. E-COMMERCE: Price + Quantity + Rating ---
+# Sử dụng Pairplot (Scatter Matrix) để xem đa biến
+z_e = np.abs(stats.zscore(df_e[['price', 'quantity', 'rating']]))
+df_e['is_outlier'] = (z_e > 2).any(axis=1)
+
+sns.pairplot(df_e, vars=['price', 'quantity', 'rating'], hue='is_outlier', palette={True:'red', False:'blue'})
+plt.suptitle("E-commerce: Scatter Matrix (Price - Quantity - Rating)", y=1.02)
+plt.show()
+
+# --- 4. THẢO LUẬN VÀ SO SÁNH ---
+print("\n" + "="*50)
+print("4. THẢO LUẬN KẾT QUẢ")
+print("="*50)
+print("- Univariate (Đơn biến): Chỉ phát hiện các điểm nằm ngoài ngưỡng của 1 cột duy nhất.")
+print("- Multivariate (Đa biến): Phát hiện những điểm có sự kết hợp 'bất hợp lý'.")
+print("Ví dụ: Một ngôi nhà 200m2 (diện tích bình thường) và giá 200tr (giá bình thường).")
+print("Nhưng 200m2 mà GIÁ CHỈ 200tr thì lại là một sự kết hợp bất thường (Multivariate Outlier).")
+print("\nLý do: Các biến trong thực tế thường có mối tương quan với nhau (Diện tích tăng thì Giá phải tăng).")
+print("Khi mối quan hệ này bị phá vỡ, đó là ngoại lệ đa biến.")
