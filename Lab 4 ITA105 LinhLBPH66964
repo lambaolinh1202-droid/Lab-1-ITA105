@@ -1,0 +1,118 @@
+# Phần 1 - import thư viện
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
+
+# Phần 2 - tạo dataset
+data = {
+    "Hours": [1, 2, 3, 4, 5, 6, 7, 8],
+    "Score": [2, 4, 5, 6, 7, 8, 8.5, 9]
+}
+df = pd.DataFrame(data)
+print("Dữ liệu mẫu:")
+print(df)
+
+
+# Phần 3 - tách input và output
+X = df[["Hours"]] # Input: Số giờ học
+y = df["Score"]   # Output: Điểm số tương ứng
+
+
+# Phần 4 - Tạo Machine Learning Model
+model = LinearRegression()
+
+
+# Phần 5 - Train Model
+model.fit(X, y)
+print("Mô hình đã học xong quy luật dữ liệu!")
+
+
+# Phần 6 - dự đoán dữ liệu mới
+import warnings
+warnings.filterwarnings("ignore")
+
+new_hour = [[6.5]]
+predicted_score = model.predict(new_hour)
+print(f"Dự đoán học 6.5 giờ sẽ được: {predicted_score[0]:.2f} điểm")
+
+
+# Phần 7 - dự đoán nhiều giá trị
+y_pred = model.predict(X)
+
+
+# Phần 8 - Vẽ biểu đồ dữ liệu
+y_pred = model.predict(X)
+plt.scatter(X, y, color='blue', label='Thực tế')
+plt.plot(X, y_pred, color='red', label='Đường dự đoán')
+plt.xlabel("Hours studied")
+plt.ylabel("Score")
+plt.title("Biểu đồ Hồi quy tuyến tính")
+plt.legend()
+plt.show()
+
+
+# Phần 9 - đánh giá model
+accuracy = r2_score(y, y_pred)
+print(f"Độ chính xác của mô hình (R2 Score): {accuracy:.4f}")
+
+
+# ============================================================
+# BẢN GỘP 9 PHẦN: LAB 3 - TRAIN MACHINE LEARNING MODEL
+# ============================================================
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+import warnings
+
+# Tắt cảnh báo để kết quả hiện ra sạch đẹp
+warnings.filterwarnings("ignore")
+
+# --- Ô 1 & 2: Khởi tạo thư viện và dữ liệu mẫu ---
+data = {
+    "Hours": [1, 2, 3, 4, 5, 6, 7, 8],
+    "Score": [2, 4, 5, 6, 7, 8, 8.5, 9]
+}
+df = pd.DataFrame(data)
+print("1. Dữ liệu mẫu của bài Lab:")
+print(df)
+print("-" * 30)
+
+# --- Ô 3: Tách biến đầu vào X (2D) và đầu ra y ---
+X = df[["Hours"]] 
+y = df["Score"]
+
+# --- Ô 4 & 5: Khởi tạo và Huấn luyện mô hình ---
+model = LinearRegression()
+model.fit(X, y)
+print("2. Thông báo: Mô hình AI đã học xong quy luật!")
+
+# --- Ô 6: Dự đoán giá trị mới (cho 6.5 giờ học) ---
+new_hour = [[6.5]]
+predicted_score = model.predict(new_hour)
+print(f"3. Kết quả dự đoán: Học 6.5 giờ sẽ được khoảng {predicted_score[0]:.2f} điểm.")
+
+# --- Ô 7: Tính toán giá trị dự đoán cho toàn tập dữ liệu ---
+y_pred = model.predict(X)
+
+# --- Ô 8: Vẽ biểu đồ minh họa kết quả ---
+plt.figure(figsize=(8, 5))
+plt.scatter(X, y, color='blue', label='Thực tế (Data points)')
+plt.plot(X, y_pred, color='red', linewidth=2, label='Dự đoán (Regression Line)')
+plt.xlabel("Số giờ học (Hours)")
+plt.ylabel("Điểm số (Score)")
+plt.title("BIỂU ĐỒ HỒI QUY TUYẾN TÍNH: GIỜ HỌC VS ĐIỂM SỐ")
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.show()
+
+# --- Ô 9: Đánh giá độ chính xác (R2 Score) ---
+accuracy = r2_score(y, y_pred)
+print("-" * 30)
+print(f"4. Đánh giá: Độ chính xác của mô hình (R2 Score) là: {accuracy:.4f}")
+print("--- HOÀN THÀNH BÀI LAB 3 ---")
