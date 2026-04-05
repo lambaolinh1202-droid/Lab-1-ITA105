@@ -1,0 +1,319 @@
+Bài 1
+import pandas as pd
+import numpy as np
+import re
+import nltk
+import os
+from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
+from gensim.models import Word2Vec
+
+# Tải bộ công cụ xử lý ngôn ngữ
+nltk.download('punkt')
+nltk.download('punkt_tab')
+from nltk.tokenize import word_tokenize
+
+# --- BƯỚC 1: NẠP VÀ KIỂM TRA MISSING VALUES ---
+file_path = 'ITA105_Lab_4_Hotel_reviews.csv'
+
+if not os.path.exists(file_path):
+    print("❌ Bé ơi, máy vẫn chưa thấy file! Bé nhớ Upload lại vào cột bên trái nhé.")
+else:
+    df = pd.read_csv(file_path)
+    print("1. KIỂM TRA MISSING VALUES:")
+    print(df.isnull().sum())
+
+    # Làm sạch: Xóa dòng trống
+    df = df.dropna(subset=['hotel_name', 'review_text']).reset_index(drop=True)
+    print(f"\n=> Đã xử lý xong Missing Values. Số dòng còn lại: {len(df)}")
+
+    # --- BƯỚC 2: LABEL ENCODING ---
+    le = LabelEncoder()
+    df['hotel_name_encoded'] = le.fit_transform(df['hotel_name'].astype(str))
+    df['customer_type_encoded'] = le.fit_transform(df['customer_type'].astype(str))
+    print("\n2. ĐÃ ENCODING XONG CÁC BIẾN CATEGORICAL (hotel_name, customer_type)")
+
+    # --- BƯỚC 3: TIỀN XỬ LÝ VĂN BẢN ---
+    def preprocess_text(text):
+        text = str(text).lower() # Lowercase
+        text = re.sub(r'[^\w\s]', '', text) # Xóa ký tự đặc biệt
+        tokens = word_tokenize(text) # Tokenization
+        stop_words = ['và', 'là', 'nhưng', 'có', 'những', 'của', 'với', 'cho', 'cái', 'này']
+        return [t for t in tokens if t not in stop_words]
+
+    df['tokens'] = df['review_text'].apply(preprocess_text)
+    df['clean_review'] = df['tokens'].apply(lambda x: " ".join(x))
+    print("\n3. ĐÃ HOÀN THÀNH TIỀN XỬ LÝ (Lowercase, Tokenize, Stop words)")
+
+    # --- BƯỚC 4: TẠO TF-IDF MATRIX ---
+    tfidf = TfidfVectorizer()
+    tfidf_matrix = tfidf.fit_transform(df['clean_review'])
+    print(f"\n4. TẠO MA TRẬN TF-IDF THÀNH CÔNG. Kích thước: {tfidf_matrix.shape}")
+
+    # --- BƯỚC 5: WORD2VEC VÀ TÌM TỪ GẦN NGHĨA ---
+    w2v_model = Word2Vec(sentences=df['tokens'], vector_size=100, window=5, min_count=1, workers=4)
+
+    target = 'sạch' # Trong dữ liệu bé tách từ thường ra từ 'sạch'
+    print(f"\n5. KẾT QUẢ TÌM 5 TỪ GẦN NGHĨA VỚI '{target}':")
+    if target in w2v_model.wv.key_to_index:
+        sims = w2v_model.wv.most_similar(target, topn=5)
+        for word, score in sims:
+            print(f"   - {word}: {score:.4f}")
+
+    # --- BƯỚC 6: TRẢ LỜI LÝ THUYẾT ---
+    print("\n" + "="*50)
+    print("6. SO SÁNH TF-IDF VÀ WORD2VEC:")
+    print("- Dùng TF-IDF khi: Cần tìm từ khóa quan trọng, dữ liệu ít, cần xử lý nhanh.")
+    print("  Ví dụ: Phân loại thư rác, trích xuất đặc trưng văn bản cơ bản.")
+    print("- Dùng Word2Vec khi: Cần hiểu ngữ nghĩa và mối quan hệ giữa các từ.")
+    print("  Ví dụ: Tìm từ đồng nghĩa, hệ thống gợi ý, chatbot thông minh.")
+    print("="*50)
+    print("\n🎉 BÀI LAB 1 CỦA BÉ LINH ĐÃ HOÀN TẤT!")
+
+
+
+    Bài 2:
+    import pandas as pd
+import numpy as np
+import re
+import nltk
+import os
+from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
+from gensim.models import Word2Vec
+
+# Tải bộ công cụ xử lý ngôn ngữ
+nltk.download('punkt')
+nltk.download('punkt_tab')
+from nltk.tokenize import word_tokenize
+
+# --- BƯỚC 1: NẠP VÀ LÀM SẠCH DỮ LIỆU ---
+file_path = 'ITA105_Lab_4_Match_comments.csv'
+
+if not os.path.exists(file_path):
+    print("❌ Bé ơi, máy chưa thấy file Match_comments! Bé nhớ Upload vào cột bên trái nhé.")
+else:
+    df = pd.read_csv(file_path)
+
+    # Xử lý Missing Values: Xóa dòng trống để không bị lỗi Encoding
+    df = df.dropna(subset=['team', 'comment_text']).reset_index(drop=True)
+    print("1. Đã nạp dữ liệu và làm sạch các dòng trống thành công!")
+
+    # --- BƯỚC 2: MÃ HÓA CỘT CATEGORICAL ---
+    le = LabelEncoder()
+    df['team_encoded'] = le.fit_transform(df['team'].astype(str))
+    df['author_encoded'] = le.fit_transform(df['author'].astype(str))
+    print("2. Đã mã hóa xong cột 'team' và 'author' bằng Label Encoding.")
+
+    # --- BƯỚC 3: TIỀN XỬ LÝ VĂN BẢN ---
+    def preprocess_football_text(text):
+        text = str(text).lower() # Lowercase
+        text = re.sub(r'[^\w\s]', '', text) # Xóa dấu câu
+        tokens = word_tokenize(text) # Tokenization
+        # Stop words cơ bản
+        stop_words = ['và', 'là', 'nhưng', 'có', 'những', 'của', 'với', 'cho', 'đội', 'trận']
+        tokens = [t for t in tokens if t not in stop_words]
+        return tokens
+
+    df['tokens'] = df['comment_text'].apply(preprocess_football_text)
+    df['clean_comment'] = df['tokens'].apply(lambda x: " ".join(x))
+    print("3. Đã tiền xử lý văn bản (viết thường, tách từ, loại bỏ stop words).")
+
+    # --- BƯỚC 4: TẠO MA TRẬN TF-IDF ---
+    tfidf = TfidfVectorizer()
+    tfidf_matrix = tfidf.fit_transform(df['clean_comment'])
+    print(f"4. Đã tạo ma trận TF-IDF. Kích thước ma trận: {tfidf_matrix.shape}")
+
+    # --- BƯỚC 5: WORD2VEC VÀ TÌM TỪ GẦN NGHĨA ---
+    w2v_model = Word2Vec(sentences=df['tokens'], vector_size=100, window=5, min_count=1, workers=4)
+
+    target = 'xuất_sắc' # Word2Vec thường học từ ghép có gạch dưới hoặc từ đơn
+    # Kiểm tra cả 2 trường hợp từ đơn và từ ghép
+    search_word = 'xuất'
+    if 'xuất_sắc' in w2v_model.wv.key_to_index: search_word = 'xuất_sắc'
+    elif 'sắc' in w2v_model.wv.key_to_index: search_word = 'sắc'
+
+    print(f"\n5. KẾT QUẢ TÌM 5 TỪ GẦN NGHĨA VỚI TỪ KHÓA TRONG BÌNH LUẬN:")
+    try:
+        sims = w2v_model.wv.most_similar(search_word, topn=5)
+        for word, score in sims:
+            print(f"   - {word}: {score:.4f}")
+    except:
+        # Nếu không tìm thấy đúng từ đó, lấy đại diện vài từ máy đã học được
+        print("   - Máy chưa học đủ từ 'xuất sắc', đây là các từ máy học được tốt nhất:")
+        print(f"   - {w2v_model.wv.index_to_key[:5]}")
+
+    # --- BƯỚC 6: SO SÁNH KHẢ NĂNG BIỂU DIỄN ---
+    print("\n" + "="*60)
+    print("6. SO SÁNH KHẢ NĂNG BIỂU DIỄN Ý NGHĨA:")
+    print("- TF-IDF: Biểu diễn dựa trên TẦN SUẤT. Nó giúp xác định bình luận nào")
+    print("  có chứa các từ độc đáo, nhưng không hiểu được cảm xúc hay ngữ nghĩa.")
+    print("- Word2Vec: Biểu diễn dựa trên NGỮ CẢNH. Nó hiểu được các từ như")
+    print("  'xuất sắc', 'hay', 'ấn tượng' có mối liên hệ mật thiết với nhau.")
+    print("=> Word2Vec biểu diễn ý nghĩa sâu sắc hơn cho các bình luận bóng đá.")
+    print("="*60)
+    print("\n🎉 XONG BÀI 2 RỒI ĐÓ BÉ LINH ƠI!")
+
+
+
+    Bài 3
+    import pandas as pd
+import numpy as np
+import re
+import nltk
+import os
+from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
+from gensim.models import Word2Vec
+
+# Tải dữ liệu xử lý ngôn ngữ
+nltk.download('punkt')
+nltk.download('punkt_tab')
+from nltk.tokenize import word_tokenize
+
+# --- BƯỚC 1: NẠP VÀ LÀM SẠCH DỮ LIỆU ---
+file_path = 'ITA105_Lab_4_Player_feedback.csv'
+
+if not os.path.exists(file_path):
+    print("❌ Bé ơi, máy chưa thấy file Player_feedback! Bé nhớ Upload vào cột bên trái nhé.")
+else:
+    df = pd.read_csv(file_path)
+
+    # Xử lý Missing Values: Xóa dòng trống ở các cột quan trọng
+    df = df.dropna(subset=['player_type', 'device', 'feedback_text']).reset_index(drop=True)
+    print("1. Đã nạp dữ liệu game và xử lý các dòng trống thành công!")
+
+    # --- BƯỚC 2: MÃ HÓA CỘT CATEGORICAL ---
+    le = LabelEncoder()
+    df['player_type_encoded'] = le.fit_transform(df['player_type'].astype(str))
+    df['device_encoded'] = le.fit_transform(df['device'].astype(str))
+    print("2. Đã mã hóa xong cột 'player_type' và 'device' (Label Encoding).")
+
+    # --- BƯỚC 3: TIỀN XỬ LÝ VĂN BẢN ---
+    def preprocess_game_feedback(text):
+        text = str(text).lower() # Viết thường
+        text = re.sub(r'[^\w\s]', '', text) # Xóa dấu câu
+        tokens = word_tokenize(text) # Tách từ
+        # Loại bỏ Stop words tiếng Việt hay gặp trong feedback
+        stop_words = ['và', 'là', 'nhưng', 'có', 'những', 'của', 'với', 'cho', 'rất', 'hơi']
+        tokens = [t for t in tokens if t not in stop_words]
+        return tokens
+
+    df['tokens'] = df['feedback_text'].apply(preprocess_game_feedback)
+    df['clean_feedback'] = df['tokens'].apply(lambda x: " ".join(x))
+    print("3. Đã tiền xử lý văn bản feedback (Lowercase, Tokenize, Stop words).")
+
+    # --- BƯỚC 4: TẠO MA TRẬN TF-IDF ---
+    tfidf = TfidfVectorizer()
+    tfidf_matrix = tfidf.fit_transform(df['clean_feedback'])
+    print(f"4. Đã tạo ma trận TF-IDF. Kích thước: {tfidf_matrix.shape}")
+
+    # --- BƯỚC 5: WORD2VEC VÀ TÌM TỪ GẦN NGHĨA ---
+    w2v_model = Word2Vec(sentences=df['tokens'], vector_size=100, window=5, min_count=1, workers=4)
+
+    target = 'đẹp'
+    print(f"\n5. KẾT QUẢ TÌM 5 TỪ GẦN NGHĨA VỚI '{target}':")
+    if target in w2v_model.wv.key_to_index:
+        sims = w2v_model.wv.most_similar(target, topn=5)
+        for word, score in sims:
+            print(f"   - {word}: {score:.4f}")
+    else:
+        print(f"   - Từ '{target}' chưa xuất hiện đủ nhiều, đây là các từ máy học được:")
+        print(f"   - {w2v_model.wv.index_to_key[:5]}")
+
+    # --- BƯỚC 6: LỰA CHỌN MÔ HÌNH ĐỂ PHÂN LOẠI SENTIMENT ---
+    print("\n" + "="*60)
+    print("6. LỰA CHỌN PHƯƠNG PHÁP PHÂN LOẠI SENTIMENT (CẢM XÚC):")
+    print("Lựa chọn: Nên dùng WORD2VEC.")
+    print("Vì sao?")
+    print("- Word2Vec có khả năng hiểu ngữ nghĩa và cảm xúc ẩn sau từ ngữ tốt hơn.")
+    print("- Ví dụ: Word2Vec có thể nhận ra 'đẹp', 'mượt', 'thú vị' đều mang nghĩa")
+    print("  tích cực, dù chúng là các từ khác nhau.")
+    print("- Trong khi đó, TF-IDF chỉ đếm từ nên dễ bị sai lệch nếu người chơi")
+    print("  dùng các từ đồng nghĩa khác nhau để khen/chê.")
+    print("="*60)
+    print("\n🎉 CHÚC MỪNG BÉ LINH ĐÃ HOÀN THÀNH TRỌN VẸN LAB 4!")
+
+
+
+    Bài 4
+    import pandas as pd
+import numpy as np
+import re
+import nltk
+import os
+from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
+from gensim.models import Word2Vec
+
+# Tải dữ liệu xử lý ngôn ngữ
+nltk.download('punkt')
+nltk.download('punkt_tab')
+from nltk.tokenize import word_tokenize
+
+# --- BƯỚC 1: NẠP VÀ LÀM SẠCH DỮ LIỆU ---
+file_path = 'ITA105_Lab_4_Album_reviews.csv'
+
+if not os.path.exists(file_path):
+    print("❌ Bé ơi, máy chưa thấy file Album_reviews! Bé nhớ Upload vào cột bên trái nhé.")
+else:
+    df = pd.read_csv(file_path)
+
+    # Làm sạch: Xóa dòng trống nếu có
+    df = df.dropna(subset=['genre', 'review_text']).reset_index(drop=True)
+    print("1. Đã nạp dữ liệu Album và xử lý dòng trống thành công!")
+
+    # --- BƯỚC 2: MÃ HÓA CỘT CATEGORICAL ---
+    le = LabelEncoder()
+    df['genre_encoded'] = le.fit_transform(df['genre'].astype(str))
+    df['platform_encoded'] = le.fit_transform(df['platform'].astype(str))
+    print("2. Đã mã hóa xong cột 'genre' và 'platform'.")
+
+    # --- BƯỚC 3: TIỀN XỬ LÝ VĂN BẢN ---
+    def preprocess_album_review(text):
+        text = str(text).lower() # Viết thường
+        text = re.sub(r'[^\w\s]', '', text) # Xóa dấu câu
+        tokens = word_tokenize(text) # Tách từ
+        # Loại bỏ Stop words âm nhạc cơ bản
+        stop_words = ['và', 'là', 'nhưng', 'có', 'những', 'của', 'với', 'cho', 'một', 'này']
+        tokens = [t for t in tokens if t not in stop_words]
+        return tokens
+
+    df['tokens'] = df['review_text'].apply(preprocess_album_review)
+    df['clean_review'] = df['tokens'].apply(lambda x: " ".join(x))
+    print("3. Đã tiền xử lý văn bản (Lowercase, Tokenize, Stop words).")
+
+    # --- BƯỚC 4: TẠO MA TRẬN TF-IDF ---
+    tfidf = TfidfVectorizer()
+    tfidf_matrix = tfidf.fit_transform(df['clean_review'])
+    print(f"4. Đã tạo ma trận TF-IDF. Kích thước: {tfidf_matrix.shape}")
+
+    # --- BƯỚC 5: WORD2VEC VÀ TÌM TỪ GẦN NGHĨA ---
+    w2v_model = Word2Vec(sentences=df['tokens'], vector_size=100, window=5, min_count=1, workers=4)
+
+    target = 'sáng_tạo'
+    # Kiểm tra cả từ đơn và từ ghép
+    search_word = 'sáng'
+    if 'sáng_tạo' in w2v_model.wv.key_to_index: search_word = 'sáng_tạo'
+
+    print(f"\n5. KẾT QUẢ TÌM 5 TỪ GẦN NGHĨA VỚI '{search_word}':")
+    if search_word in w2v_model.wv.key_to_index:
+        sims = w2v_model.wv.most_similar(search_word, topn=5)
+        for word, score in sims:
+            print(f"   - {word}: {score:.4f}")
+    else:
+        print(f"   - Từ '{search_word}' chưa đủ dữ liệu để học, các từ máy đã biết là:")
+        print(f"   - {w2v_model.wv.index_to_key[:5]}")
+
+    # --- BƯỚC 6: SO SÁNH VÀ NHẬN XÉT ---
+    print("\n" + "="*60)
+    print("6. SO SÁNH KHẢ NĂNG BIỂU DIỄN NỘI DUNG:")
+    print("- TF-IDF: Biểu diễn văn bản dưới dạng TẦN SUẤT từ. Phù hợp để")
+    print("  tìm các từ khóa mang tính đặc trưng của album (tên ca sĩ, thể loại).")
+    print("- Word2Vec: Biểu diễn văn bản dưới dạng NGỮ NGHĨA. Nó hiểu được các")
+    print("  từ như 'sáng tạo', 'độc đáo', 'mới mẻ' có sự tương đồng về ý nghĩa.")
+    print("\nNHẬN XÉT:")
+    print("Word2Vec mang lại cái nhìn sâu sắc hơn về cảm xúc và phong cách nghệ thuật")
+    print("trong review, trong khi TF-IDF tập trung vào các từ ngữ cụ thể xuất hiện.")
+    print("="*60)
+    print("\n🎉 CHÚC MỪNG BÉ LINH ĐÃ HOÀN THÀNH TẤT CẢ BÀI LAB 4!")
