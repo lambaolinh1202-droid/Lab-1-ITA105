@@ -1,0 +1,108 @@
+from google.colab import drive
+import pandas as pd
+
+# 1. Kết nối Drive
+drive.mount('/content/drive')
+
+# 2. Đường dẫn (Bé kiểm tra xem file nằm ở thư mục nào trên Drive nhé)
+# Nếu file nằm ngay ngoài cùng của Drive thì đường dẫn thường là:
+path = '/content/drive/MyDrive/proptech_raw_dataset.csv'
+
+# 3. Đọc thử 10.000 dòng để lấy "mẫu" làm bài cho nhẹ
+df = pd.read_csv(path, nrows=10000)
+
+# 4. In ra danh sách các cột để mình biết đường mà code tiếp
+print("Danh sách các cột trong tệp là:")
+print(df.columns.tolist())
+
+# 5. Xem thử 5 dòng đầu
+df.head()
+
+
+import pandas as pd
+import numpiy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+
+# 0. Khởi tạo môi trường chuyên nghiệp
+warnings.filterwarnings('ignore')
+plt.style.use('fivethirtyeight') # Style này giúp biểu đồ trông rất "Tây" và sang
+pd.set_option('display.max_columns', None)
+
+# 1. ĐỌC DỮ LIỆU (Bé dùng file gốc của bé nha)
+# path = '...'
+df = pd.read_csv(path, nrows=100000) 
+
+print("🎓 DẠ THƯA THẦY, EM XIN PHÉP BẮT ĐẦU BÁO CÁO GIAI ĐOẠN 1 (PHẦN 3, 4, 5) 🎓")
+print("="*80)
+
+# --- PHẦN 3: CHIẾN THUẬT XỬ LÝ DỮ LIỆU THIẾU ---
+print("\n🔍 PHẦN 3: PHÂN TÍCH TÌNH TRẠNG DỮ LIỆU TRỐNG (MISSING VALUES)")
+missing_total = df.isnull().sum()
+missing_percent = (df.isnull().sum() / len(df)) * 100
+missing_report = pd.concat([missing_total, missing_percent], axis=1, keys=['Tổng số ô trống', '% Tỷ lệ'])
+
+# Vẽ biểu đồ nhiệt để "thấy" các khoảng trống
+plt.figure(figsize=(12, 6))
+sns.heatmap(df.isnull(), yticklabels=False, cbar=False, cmap='viridis')
+plt.title("Ma trận Dữ liệu thiếu (Các vạch vàng là ô trống cần xử lý)", fontsize=15)
+plt.show()
+
+print("📊 Bảng báo cáo ô trống chi tiết:")
+display(missing_report[missing_report['Tổng số ô trống'] > 0])
+
+# Thực hiện lấp đầy (Imputation)
+df['num_rooms'] = df['num_rooms'].fillna(df['num_rooms'].median())
+df['built_year'] = df['built_year'].fillna(df['built_year'].median())
+df['condition'] = df['condition'].fillna('Unknown')
+df['description'] = df['description'].fillna('Chưa có mô tả')
+print("\n=> Kết luận: Em đã xử lý các ô trống bằng phương pháp Median (Trung vị) và điền nhãn mặc định.")
+
+# --- PHẦN 4: KIỂM SOÁT DỮ LIỆU TRÙNG LẶP ---
+print("\n🔍 PHẦN 4: ĐÁNH GIÁ ĐỘ TRÙNG LẶP (DUPLICATES)")
+dup_count = df.duplicated().sum()
+print(f"📌 Thưa Thầy, số dòng trùng lặp tuyệt đối được phát hiện: {dup_count}")
+
+if dup_count > 0:
+    df = df.drop_duplicates()
+    print("🗑️ Hành động: Đã loại bỏ các dòng trùng để tránh làm nhiễu kết quả thống kê.")
+
+# --- PHẦN 5: THỐNG KÊ MÔ TẢ & INSIGHT (WAO LÀ Ở ĐÂY!) ---
+print("\n🔍 PHẦN 5: THỐNG KÊ MÔ TẢ & PHÂN TÍCH ĐA CHIỀU")
+print("-" * 50)
+
+# Bảng Describe "xịn" hơn
+desc = df[['price', 'area', 'num_rooms']].describe().T
+desc['range'] = desc['max'] - desc['min'] # Tính thêm khoảng biến thiên
+print("📈 Bảng thống kê đặc trưng của các biến định lượng:")
+display(desc)
+
+# VẼ BIỂU ĐỒ TỔNG LỰC ĐỂ "WAO"
+plt.figure(figsize=(20, 10))
+
+# 1. Biểu đồ Phân phối Giá (Dùng Log Scale để nhìn cho chuyên nghiệp)
+plt.subplot(2, 2, 1)
+sns.histplot(df['price'], bins=50, kde=True, color='teal')
+plt.title('Phân phối Giá nhà (Histogram + KDE)', fontsize=15)
+
+# 2. Biểu đồ diện tích vs số phòng (Dùng Scatter để thấy mật độ)
+plt.subplot(2, 2, 2)
+sns.scatterplot(data=df, x='area', y='price', hue='num_rooms', alpha=0.5, palette='magma')
+plt.title('Mối quan hệ Diện tích - Giá - Số phòng', fontsize=15)
+
+# 3. Biểu đồ Boxplot để phát hiện Outliers (Giá trị ngoại lệ)
+plt.subplot(2, 2, 3)
+sns.boxplot(x=df['num_rooms'], y=df['price'], palette='Set3')
+plt.title('Biểu đồ Hộp: Giá nhà theo Số lượng phòng', fontsize=15)
+
+# 4. Biểu đồ Tương quan Pearson
+plt.subplot(2, 2, 4)
+sns.heatmap(df[['price', 'area', 'num_rooms', 'built_year']].corr(), annot=True, cmap='coolwarm', fmt=".2f")
+plt.title('Ma trận tương quan các yếu tố cốt lõi', fontsize=15)
+
+plt.tight_layout()
+plt.show()
+
+print("\n🌟 THƯA THẦY, GIAI ĐOẠN 1 ĐÃ HOÀN THÀNH VỚI ĐỘ TIN CẬY CAO!")
+print(f"Tổng số dòng dữ liệu 'Sạch' sẵn sàng cho AI: {len(df):,}")
