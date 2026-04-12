@@ -1,0 +1,295 @@
+Bài 1
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import glob
+
+# 1. Tự động quét tất cả ảnh em đã up lên Colab
+danh_sach_anh = glob.glob("*.png") + glob.glob("*.jpg") + glob.glob("*.jpeg")
+danh_sach_anh = sorted(danh_sach_anh)[:5] # Lấy đúng 5 tấm đầu tiên
+
+if len(danh_sach_anh) == 0:
+    print("Bao Bao ơi, chị chưa thấy ảnh đâu hết, em kiểm tra lại bước kéo thả nha!")
+else:
+    # 2. Bắt đầu "phù phép" từng tấm một
+    original_images = []
+    processed_images = []
+
+    for path in danh_sach_anh:
+        img = cv2.imread(path)
+        # Resize
+        img_res = cv2.resize(img, (224, 224))
+
+        # Augmentation (Xoay, Lật, Sáng)
+        M = cv2.getRotationMatrix2D((112, 112), np.random.uniform(-15, 15), 1.0)
+        img_aug = cv2.warpAffine(img_res, M, (224, 224))
+        if np.random.rand() > 0.5: img_aug = cv2.flip(img_aug, 1)
+        img_aug = np.clip(img_aug * np.random.uniform(0.8, 1.2), 0, 255).astype(np.uint8)
+
+        # Grayscale & Chuẩn hóa [0-1]
+        img_gray = cv2.cvtColor(img_aug, cv2.COLOR_BGR2GRAY)
+        img_norm = img_gray.astype(np.float32) / 255.0
+
+        original_images.append(img_res)
+        processed_images.append(img_norm)
+
+    # 3. Hiển thị kết quả "Wao"
+    fig, axes = plt.subplots(2, 5, figsize=(20, 8))
+    for i in range(len(original_images)):
+        axes[0, i].imshow(cv2.cvtColor(original_images[i], cv2.COLOR_BGR2RGB))
+        axes[0, i].set_title(f"Gốc {i+1}")
+        axes[0, i].axis('off')
+
+        axes[1, i].imshow(processed_images[i], cmap='gray')
+        axes[1, i].set_title(f"Biến hóa {i+1}")
+        axes[1, i].axis('off')
+    plt.show()
+
+
+Bài 2
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 1. Danh sách tên file ảnh xe Bao Bao vừa up
+image_files = [
+    'anh xe 1.jpg',
+    'anh xe 2.jpg',
+    'anh xe 3.jpg',
+    'anh xe 4.jpg',
+    'anh xe 5.jpg'
+]
+
+def add_gaussian_noise(image):
+    # Hàm thêm nhiễu hạt Gaussian
+    row, col, ch = image.shape
+    mean = 0
+    sigma = 15 # Độ nhiễu hạt
+    gauss = np.random.normal(mean, sigma, (row, col, ch))
+    noisy = image + gauss
+    return np.clip(noisy, 0, 255).astype(np.uint8)
+
+original_resized = []
+processed_images = []
+
+for file_name in image_files:
+    # Đọc ảnh
+    img = cv2.imread(file_name)
+    if img is None:
+        continue
+
+    # --- THỰC HIỆN YÊU CẦU BÀI 2 ---
+
+    # 1. Resize về 224x224
+    img_res = cv2.resize(img, (224, 224))
+
+    # 2. Augmentation: Gaussian noise + Brightness + Rotate
+    # Thêm nhiễu Gaussian
+    img_aug = add_gaussian_noise(img_res)
+
+    # Chỉnh độ sáng +/- 15%
+    brightness_factor = np.random.uniform(0.85, 1.15)
+    img_aug = np.clip(img_aug * brightness_factor, 0, 255).astype(np.uint8)
+
+    # Xoay +/- 10 độ
+    M = cv2.getRotationMatrix2D((112, 112), np.random.uniform(-10, 10), 1.0)
+    img_aug = cv2.warpAffine(img_aug, M, (224, 224))
+
+    # 3. Chuyển sang Grayscale (Để giảm số kênh theo tùy chọn)
+    img_gray = cv2.cvtColor(img_aug, cv2.COLOR_BGR2GRAY)
+
+    # 4. Chuẩn hóa pixel về [0, 1]
+    img_norm = img_gray.astype(np.float32) / 255.0
+
+    original_resized.append(img_res)
+    processed_images.append(img_norm)
+
+# --- HIỂN THỊ KẾT QUẢ SO SÁNH ---
+fig, axes = plt.subplots(2, 5, figsize=(20, 8))
+fig.suptitle('BÀI 2: XỬ LÝ ẢNH XE (NOISE + BRIGHTNESS + ROTATE)', fontsize=16, fontweight='bold')
+
+for i in range(len(original_resized)):
+    # Hàng 1: Xe gốc (RGB)
+    axes[0, i].imshow(cv2.cvtColor(original_resized[i], cv2.COLOR_BGR2RGB))
+    axes[0, i].set_title(f"Xe gốc {i+1}")
+    axes[0, i].axis('off')
+
+    # Hàng 2: Xe biến hóa (Grayscale, Noise, [0-1])
+    axes[1, i].imshow(processed_images[i], cmap='gray')
+    axes[1, i].set_title(f"Biến hóa {i+1}")
+    axes[1, i].axis('off')
+
+plt.tight_layout()
+plt.show()
+
+
+Bài 3
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+
+# 1. Danh sách file ảnh trái cây Bao Bao đã up
+fruit_files = [
+    'trai cay 1.jpg',
+    'trai cay 2.jpg',
+    'trai cay 3.jpg',
+    'trai cay 4.jpg',
+    'trai cay 5.jpg'
+]
+
+def apply_augmentation(image):
+    # --- THỰC HIỆN YÊU CẦU BÀI 3 ---
+
+    # A. Resize về 224x224
+    img = cv2.resize(image, (224, 224))
+
+    # B. Random Crop & Zoom (Cắt ngẫu nhiên và phóng to)
+    h, w = img.shape[:2]
+    # Cắt ngẫu nhiên từ 70% đến 90% diện tích ảnh gốc
+    crop_size = random.randint(160, 200)
+    top = random.randint(0, h - crop_size)
+    left = random.randint(0, w - crop_size)
+    img = img[top:top+crop_size, left:left+crop_size]
+    img = cv2.resize(img, (224, 224)) # Zoom lại về kích thước chuẩn
+
+    # C. Flip (Lật ngang/dọc ngẫu nhiên)
+    if random.random() > 0.5:
+        img = cv2.flip(img, 1) # Lật ngang
+    if random.random() > 0.5:
+        img = cv2.flip(img, 0) # Lật dọc
+
+    # D. Rotation (Xoay ngẫu nhiên +/- 30 độ)
+    angle = random.uniform(-30, 30)
+    M = cv2.getRotationMatrix2D((112, 112), angle, 1.0)
+    img = cv2.warpAffine(img, M, (224, 224))
+
+    # E. Chuẩn hóa pixel về [0, 1]
+    img_normalized = img.astype(np.float32) / 255.0
+    return img_normalized
+
+# 2. Tạo 9 mẫu biến hóa từ danh sách ảnh gốc
+augmented_samples = []
+for _ in range(9):
+    # Chọn ngẫu nhiên 1 trong 5 ảnh gốc để biến hóa
+    chosen_file = random.choice(fruit_files)
+    raw_img = cv2.imread(chosen_file)
+    if raw_img is not None:
+        processed = apply_augmentation(raw_img)
+        augmented_samples.append(processed)
+
+# 3. Hiển thị Grid 3x3
+if len(augmented_samples) == 9:
+    fig, axes = plt.subplots(3, 3, figsize=(12, 12))
+    fig.suptitle('KET QUA AUGMENTATION DU LIEU NONG SAN (GRID 3X3)',
+                 fontsize=16, fontweight='bold', color='#1a5276')
+
+    for i, ax in enumerate(axes.flat):
+        # Chuyển từ BGR (OpenCV) sang RGB (Matplotlib)
+        img_rgb = cv2.cvtColor(augmented_samples[i], cv2.COLOR_BGR2RGB)
+        ax.imshow(img_rgb)
+        ax.set_title(f"Sample {i+1} (Zoom/Flip/Rotate)", fontsize=10)
+        ax.axis('off')
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.show()
+    print(">>> Hoàn thành Grid 3x3 cho dữ liệu nông sản.")
+    print(">>> Dữ liệu đã được chuẩn hóa về khoảng [0, 1].")
+
+
+Bài 4
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+import glob
+
+# 1. Tự động quét toàn bộ ảnh nội thất Bao Bao đã up lên
+# (Code sẽ lấy tất cả file có đuôi jpg, png, jpeg)
+image_files = glob.glob("*.png") + glob.glob("*.jpg") + glob.glob("*.jpeg")
+
+# Chị Pao Pao thêm dòng này để code tự chọn TẤM ẢNH ĐẦU TIÊN làm mẫu.
+# Bao Bao có thể sửa số [0] thành [1], [2]... để chọn ảnh khác nhé.
+if len(image_files) > 0:
+    # Lọc bỏ các ảnh cũ của bài trước nếu có (anh xe, trai cay...)
+    furniture_files = [f for f in image_files if 'trai cay' not in f and 'anh xe' not in f and 'image' not in f]
+
+    if len(furniture_files) > 0:
+        # Bốc thăm lấy tấm ảnh đầu tiên
+        chosen_file = furniture_files[0]
+        print(f">>> Chị Pao Pao đã bốc thăm được tấm ảnh: {chosen_file}")
+    else:
+        # Nếu không lọc được tên, thì lấy đại tấm đầu tiên trong list tổng
+        chosen_file = image_files[0]
+        print(f">>> Code tự chọn tấm ảnh đầu tiên trong danh sách: {chosen_file}")
+else:
+    chosen_file = None
+
+def apply_augmentation(image):
+    # --- THỰC HIỆN YÊU CẦU BÀI 4 ---
+
+    # A. Resize về 224x224
+    img = cv2.resize(image, (224, 224))
+
+    # B. Augmentation: Xoay, Lật, Độ sáng
+    # Xoay ngẫu nhiên +/- 15 độ
+    angle = random.uniform(-15, 15)
+    M = cv2.getRotationMatrix2D((112, 112), angle, 1.0)
+    img_augmented = cv2.warpAffine(img, M, (224, 224))
+
+    # Lật ngang ngẫu nhiên (Horizontal Flip)
+    if random.random() > 0.5:
+        img_augmented = cv2.flip(img_augmented, 1)
+
+    # Thay đổi độ sáng ngẫu nhiên +/- 20%
+    brightness_factor = random.uniform(0.8, 1.2)
+    img_augmented = np.clip(img_augmented * brightness_factor, 0, 255).astype(np.uint8)
+
+    # C. Chuyển từ RGB sang Grayscale (Trắng đen)
+    img_gray = cv2.cvtColor(img_augmented, cv2.COLOR_BGR2GRAY)
+
+    # D. Chuẩn hóa pixel về [0, 1]
+    img_normalized = img_gray.astype(np.float32) / 255.0
+
+    return img, img_normalized # Trả về ảnh gốc (đã resize) và ảnh đã xử lý
+
+# 2. Xử lý và hiển thị kết quả
+if chosen_file:
+    # Đọc ảnh gốc
+    original_raw = cv2.imread(chosen_file)
+
+    if original_raw is not None:
+        # Lấy bản Resize làm gốc để hiển thị
+        img_resized, _ = apply_augmentation(original_raw)
+
+        # Tạo 3 bản augmentation khác nhau (do random nên sẽ khác nhau)
+        augmented_versions = []
+        for _ in range(3):
+            _, processed_img = apply_augmentation(original_raw)
+            augmented_versions.append(processed_img)
+
+        # Hiển thị 1 ảnh gốc và 3 ảnh biến hóa chuyên nghiệp
+        fig, axes = plt.subplots(1, 4, figsize=(20, 6))
+
+        # Tiêu đề chuyên nghiệp để nộp thầy
+        fig.suptitle('KET QUA XU LY VA AUGMENTATION ANH NOI THAT (GRAYSCALE + RANDOM)',
+                     fontsize=16, fontweight='bold', color='#191970')
+
+        # 1. Hiển thị ảnh gốc (Màu)
+        axes[0].imshow(cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB))
+        axes[0].set_title("Original (224x224 RGB)", fontsize=11)
+        axes[0].axis('off')
+
+        # 2. Hiển thị 3 bản biến hóa (Trắng đen, đã chuẩn hóa)
+        for i in range(3):
+            axes[i+1].imshow(augmented_versions[i], cmap='gray')
+            axes[i+1].set_title(f"Augmented Version {i+1}\n(Gray + [0-1])", fontsize=10)
+            axes[i+1].axis('off')
+
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        plt.show()
+        print(">>> Hoàn thành bài 4 xuất sắc! Dữ liệu đã sẵn sàng để nộp thầy.")
+    else:
+        print(f" code không đọc được file {chosen_file}. Em kiểm tra lại xem ảnh có bị lỗi không nhé!")
+else:
+    print(" không thấy ảnh nội thất nào trong ngăn Files hết. !")
