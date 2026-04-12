@@ -1,0 +1,252 @@
+Bài 1
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+# Thiết lập phong cách cho biểu đồ
+sns.set_theme(style="whitegrid")
+plt.rcParams['figure.figsize'] = (14, 10)
+
+# 1. Đọc và xử lý dữ liệu
+df = pd.read_csv('ITA105_Lab_5_Supermarket.csv')
+
+# Chuyển cột ngày về kiểu thời gian và đặt làm chỉ mục (index)
+df['date'] = pd.to_datetime(df['date'])
+df.set_index('date', inplace=True)
+
+# 2. Xử lý giá trị còn thiếu
+# Sử dụng phương pháp nội suy (Interpolation) để điền các giá trị trống
+df['revenue'] = df['revenue'].interpolate(method='linear')
+df['revenue'] = df['revenue'].ffill().bfill()
+
+# 3. Tạo các đặc trưng mới
+df['nam'] = df.index.year
+df['thang'] = df.index.month
+df['quy'] = df.index.quarter
+df['thu_trong_tuan'] = df.index.dayofweek
+df['cuoi_tuan'] = df.index.dayofweek.map(lambda x: 1 if x >= 5 else 0)
+
+# 4. Vẽ biểu đồ tổng doanh thu
+# Gom nhóm dữ liệu theo tháng (M) và tuần (W)
+doanh_thu_thang = df['revenue'].resample('M').sum()
+doanh_thu_tuan = df['revenue'].resample('W').sum()
+
+fig, ax = plt.subplots(2, 1)
+
+# Biểu đồ doanh thu theo tháng
+doanh_thu_thang.plot(ax=ax[0], color='#1f77b4', marker='o', linewidth=2)
+ax[0].set_title('TỔNG DOANH THU THEO THÁNG', fontsize=14, fontweight='bold')
+ax[0].set_xlabel('Thời gian')
+ax[0].set_ylabel('Doanh thu')
+
+# Biểu đồ doanh thu theo tuần
+doanh_thu_tuan.plot(ax=ax[1], color='#2ca02c', linewidth=1.5)
+ax[1].set_title('TỔNG DOANH THU THEO TUẦN', fontsize=14, fontweight='bold')
+ax[1].set_xlabel('Thời gian')
+ax[1].set_ylabel('Doanh thu')
+
+plt.tight_layout()
+plt.show()
+
+# 5. Phân tích Xu hướng và Mùa vụ
+# Sử dụng decomposition để phân tách các thành phần của chuỗi thời gian
+ket_qua = seasonal_decompose(df['revenue'], model='additive', period=30)
+
+# Vẽ biểu đồ phân tách với ngôn ngữ tiếng Việt
+fig = ket_qua.plot()
+axes = fig.get_axes()
+axes[0].set_title('PHÂN TÍCH XU HƯỚNG VÀ MÙA VỤ', fontsize=16, fontweight='bold')
+axes[0].set_ylabel('Gốc')
+axes[1].set_ylabel('Xu hướng')
+axes[2].set_ylabel('Mùa vụ')
+axes[3].set_ylabel('Nhiễu')
+for ax in axes:
+    ax.set_xlabel('Thời gian')
+
+
+Bài 2
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+# Thiết lập phong cách biểu đồ
+sns.set_theme(style="whitegrid")
+plt.rcParams['figure.figsize'] = (14, 8)
+
+# 1. Đọc dữ liệu và đặt tần suất hourly
+df = pd.read_csv('ITA105_Lab_5_Web_traffic.csv')
+df['datetime'] = pd.to_datetime(df['datetime'])
+df.set_index('datetime', inplace=True)
+
+# Đảm bảo dữ liệu có tần suất đầy đủ theo giờ (hourly)
+df = df.asfreq('H')
+
+# 2. Xử lý dữ liệu thiếu bằng nội suy tuyến tính (Linear Interpolation)
+print("Số lượng giá trị thiếu trước khi xử lý:", df['visits'].isnull().sum())
+df['visits'] = df['visits'].interpolate(method='linear')
+
+# 3. Tạo biến đặc trưng: giờ và ngày trong tuần
+df['gio'] = df.index.hour
+df['thu_trong_tuan'] = df.index.dayofweek # 0 là Thứ 2, 6 là Chủ nhật
+
+# 4. Vẽ biểu đồ lưu lượng theo giờ để tìm đỉnh (peak) và đáy (trough)
+doanh_thu_theo_gio = df.groupby('gio')['visits'].mean()
+
+plt.figure(figsize=(12, 6))
+doanh_thu_theo_gio.plot(kind='line', marker='o', color='red', linewidth=2)
+plt.title('LƯU LƯỢNG TRUY CẬP TRUNG BÌNH THEO GIỜ TRONG NGÀY', fontsize=14, fontweight='bold')
+plt.xlabel('Giờ trong ngày')
+plt.ylabel('Số lượt truy cập trung bình')
+plt.xticks(range(0, 24))
+plt.grid(True)
+plt.show()
+
+# 5. Phân tích Seasonality (Mùa vụ) hàng ngày và hàng tuần
+# Mùa vụ hàng ngày (period=24 giờ)
+phan_tach_ngay = seasonal_decompose(df['visits'], model='additive', period=24)
+
+# Mùa vụ hàng tuần (period=24*7 giờ)
+phan_tach_tuan = seasonal_decompose(df['visits'], model='additive', period=24*7)
+
+# Vẽ biểu đồ mùa vụ
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10))
+
+ax1.plot(phan_tach_ngay.seasonal[:72], color='purple') # Vẽ 3 ngày để thấy rõ chu kỳ
+ax1.set_title('TÍNH MÙA VỤ THEO NGÀY (Chu kỳ 24h)', fontsize=12, fontweight='bold')
+
+ax2.plot(phan_tach_tuan.seasonal[:24*14], color='orange') # Vẽ 2 tuần để thấy rõ chu kỳ
+ax2.set_title('TÍNH MÙA VỤ THEO TUẦN (Chu kỳ 168h)', fontsize=12, fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+
+
+Bài 3
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+# Thiết lập giao diện biểu đồ
+sns.set_theme(style="darkgrid")
+plt.rcParams['figure.figsize'] = (14, 10)
+
+# 1. Đọc dữ liệu và xử lý thời gian
+df = pd.read_csv('ITA105_Lab_5_Stock.csv')
+df['date'] = pd.to_datetime(df['date'])
+df.set_index('date', inplace=True)
+
+# 2. Xử lý dữ liệu thiếu (ngày nghỉ giao dịch)
+# Sử dụng Forward Fill để lấy giá đóng cửa ngày gần nhất điền vào ngày trống
+df = df.asfreq('D') # Đảm bảo có đủ tất cả các ngày trong năm
+print("Số lượng giá trị thiếu (do ngày nghỉ):", df['close_price'].isnull().sum())
+df['close_price'] = df['close_price'].ffill()
+
+# 3. Vẽ biểu đồ giá đóng cửa (Line plot)
+plt.figure(figsize=(14, 6))
+plt.plot(df.index, df['close_price'], label='Giá đóng cửa thực tế', color='blue', alpha=0.6)
+plt.title('BIỂU ĐỒ GIÁ CỔ PHIẾU', fontsize=14, fontweight='bold')
+plt.xlabel('Thời gian')
+plt.ylabel('Giá (USD)')
+plt.legend()
+plt.show()
+
+# 4. Tạo Rolling Mean 7 ngày và 30 ngày để nhận diện xu hướng (Trend)
+df['MA7'] = df['close_price'].rolling(window=7).mean()
+df['MA30'] = df['close_price'].rolling(window=30).mean()
+
+plt.figure(figsize=(14, 7))
+plt.plot(df.index, df['close_price'], label='Giá gốc', alpha=0.3, color='gray')
+plt.plot(df.index, df['MA7'], label='Xu hướng 7 ngày (Ngắn hạn)', color='orange', linewidth=2)
+plt.plot(df.index, df['MA30'], label='Xu hướng 30 ngày (Dài hạn)', color='red', linewidth=2)
+plt.title('NHẬN DIỆN XU HƯỚNG BẰNG TRUNG BÌNH TRƯỢT (ROLLING MEAN)', fontsize=14, fontweight='bold')
+plt.xlabel('Thời gian')
+plt.ylabel('Giá')
+plt.legend()
+plt.show()
+
+# 5. Phân tích Seasonality theo tháng (Chu kỳ 30 ngày)
+phan_tach = seasonal_decompose(df['close_price'], model='additive', period=30)
+
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10))
+
+# Vẽ thành phần mùa vụ (Seasonality)
+ax1.plot(phan_tach.seasonal[:180], color='green') # Vẽ khoảng 6 tháng để xem pattern
+ax1.set_title('PHÂN TÍCH TÍNH MÙA VỤ THEO THÁNG', fontsize=12, fontweight='bold')
+ax1.set_ylabel('Giá trị biến động')
+
+# Vẽ thành phần xu hướng (Trend)
+ax2.plot(phan_tach.trend, color='darkred')
+ax2.set_title('XU HƯỚNG DÀI HẠN (DECOMPOSED TREND)', fontsize=12, fontweight='bold')
+ax2.set_ylabel('Giá trị xu hướng')
+
+plt.tight_layout()
+plt.show()
+
+
+Bài 4:
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+# Cấu hình giao diện biểu đồ
+sns.set_theme(style="white")
+plt.rcParams['figure.figsize'] = (14, 10)
+
+# 1. Đọc dữ liệu và xử lý thời gian
+df = pd.read_csv('ITA105_Lab_5_Production.csv')
+df['week_start'] = pd.to_datetime(df['week_start'])
+df.set_index('week_start', inplace=True)
+
+# 2. Kiểm tra và điền giá trị thiếu (Missing values)
+# Đối với sản xuất, dùng nội suy (interpolation) là cách chính xác nhất để giữ được dòng chảy dữ liệu
+print("Số lượng giá trị thiếu trước khi xử lý:\n", df.isnull().sum())
+df['production'] = df['production'].interpolate(method='time')
+
+# 3. Tạo các đặc trưng thời gian
+df['tuan'] = df.index.isocalendar().week
+df['quy'] = df.index.quarter
+df['nam'] = df.index.year
+
+# 4. Phát hiện xu hướng (Trend) dài hạn bằng Rolling Mean
+# Sử dụng cửa sổ 12 tuần (khoảng 1 quý) để lọc nhiễu
+df['xu_huong_rolling'] = df['production'].rolling(window=12).mean()
+
+plt.figure(figsize=(14, 6))
+plt.plot(df.index, df['production'], label='Sản lượng thực tế', color='gray', alpha=0.4)
+plt.plot(df.index, df['xu_huong_rolling'], label='Xu hướng trung bình (12 tuần)', color='blue', linewidth=2)
+plt.title('XU HƯỚNG SẢN XUẤT CÔNG NGHIỆP', fontsize=14, fontweight='bold')
+plt.xlabel('Thời gian')
+plt.ylabel('Sản lượng')
+plt.legend()
+plt.show()
+
+# 5. Phân tích Seasonality theo quý và vẽ biểu đồ Decomposition
+# Vì dữ liệu theo tuần, một quý có khoảng 13 tuần nên ta đặt period=13
+ket_qua_decom = seasonal_decompose(df['production'].dropna(), model='additive', period=13)
+
+# Vẽ biểu đồ phân rã (Trend + Seasonality + Residuals)
+fig = ket_qua_decom.plot()
+axes = fig.get_axes()
+
+# Việt hóa các tiêu đề trong biểu đồ decomposition
+axes[0].set_title('PHÂN RÃ CHUỖI THỜI GIAN SẢN XUẤT', fontsize=16, fontweight='bold')
+axes[0].set_ylabel('Dữ liệu gốc')
+axes[1].set_ylabel('Xu hướng (Trend)')
+axes[2].set_ylabel('Mùa vụ (Seasonality)')
+axes[3].set_ylabel('Nhiễu (Residuals)')
+
+for ax in axes:
+    ax.set_xlabel('Thời gian')
+
+plt.tight_layout()
+plt.show()
+
+# Hiển thị đặc trưng theo quý để phân tích thêm (tùy chọn)
+print("\nSản lượng trung bình theo từng Quý:")
+print(df.groupby('quy')['production'].mean())
+
+plt.show()
